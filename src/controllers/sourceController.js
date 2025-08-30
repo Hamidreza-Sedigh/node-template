@@ -1,0 +1,161 @@
+const Source = require('../models/Source');
+const jwt =    require('jsonwebtoken');
+
+module.exports = {   
+    async getAllSources(req,res){
+        console.log("getAllSources started.");
+        const { source } = req.params;
+        const query = source ? { source } : {} ;
+        try {
+            const sources = await Source.find(query).sort({"sourceName": -1}).exec()
+            if(sources){
+                // return res.json({authData, sources})
+                return res.json({user: req.user || null, sources})
+            }    
+        } catch (error) {
+            return res.status(400).json({ message: 'we dont have any sources yet'});
+        }
+            
+    },
+
+    async getDistinctSources(req,res){
+
+                try {
+                    const sources = await Source.distinct("sourceName");
+                    if(sources){
+                        console.log("sources:", sources);
+                        console.log("response::");
+                        // console.log(json({authData, sources}));
+                        return res.json({user: req.user || null, sources})
+                    }    
+                } catch (error) {
+                    console.log(error);
+                    return res.status(400).json({ message: 'we dont have any sources yet'});
+                }
+            
+    },
+    async getOneSource(req,res){
+        
+                console.log("req.params:",req.params);
+                const { sourceName  } = req.params;
+                const query = sourceName  ? { sourceName } : {} ;
+                try {
+                    const sources = await Source.find(query);
+                    if(sources){
+                        console.log("sources:", sources);
+                        return res.json({user: req.user || null, sources})
+                    }    
+                } catch (error) {
+                    console.log(error);
+                    return res.status(400).json({ message: 'we dont have any sources yet'});
+                }
+
+    },
+
+    async toggleStatus(req,res){
+        console.log("toggleStatus Started...");
+        try {
+            const { id, enable } = req.body;
+            console.log(id, enable);
+       
+            const updatedSource = await Source.findByIdAndUpdate(
+            id,
+            { enable },
+            { new: true }
+            );
+
+            if (!updatedSource) {
+            return res.status(404).json({ message: 'منبع یافت نشد' });
+            }
+
+            // res.json(updatedSource);
+            res.status(200).json(updatedSource); // صریحاً status 200 بفرستید
+
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'خطا در سرور' });
+        }
+    },
+
+
+    async createSource(req, res){
+            try {
+                console.log("Test-createSource:", req.body);
+                const {sourceName, sourceNameEn, siteAddress, rssURL, tagClassName, 
+                    secondTag, isLocalImg, 
+                    isCategorized,  categoryPr, categoryEn,
+                    isSubCategorized, subCategoryPr, subCategoryEn, cutAfter
+                } = req.body;
+                const removeTags = JSON.parse(req.body.removeTags || '[]');
+                const removeAttrs = JSON.parse(req.body.removeAttrs || "[]");
+                const existenSource = await Source.findOne({rssURL});
+                console.log("existenSource:", existenSource);
+                if(!existenSource){
+                    const addSource = await Source.create({
+                        sourceName,
+                        sourceNameEn,
+                        siteAddress,
+                        rssURL,
+                        tagClassName,
+                        secondTag,
+                        isLocalImg,
+                        isCategorized,
+                        category: categoryPr,
+                        categoryEn,
+                        isSubCategorized, 
+                        subCategory: subCategoryPr, 
+                        subCategoryEn,
+                        status: 'A',
+                        enable: true,
+                        removeTags, 
+                        removeAttrs,
+                        cutAfter
+                    });
+                    console.log("DONE! sourceAdded");
+                    return res.json(addSource);
+                } else {
+                    return res.status(400).json({
+                        message: "source already exist!"
+                    });
+                }
+            } catch (error) {
+                throw Error(`Error while adding new Source: ${error}`)
+            }    
+
+    },
+
+    // حذف سورس
+    async deleteSource(req, res) {
+        try {
+            const { id } = req.params;
+            await Source.deleteOne({ _id: id });
+            res.status(200).json({ message: 'سورس با موفقیت حذف شد' });
+        } catch (err) {
+            console.error('خطا در حذف سورس:', err);
+            res.status(500).json({ error: 'خطا در حذف سورس' });
+        }
+    },
+
+    // ویرایش سورس
+    async editSource(req, res) {
+        try {
+            const { id } = req.params;
+            const update = req.body;
+
+            // فقط مقادیری که از کلاینت اومده رو آپدیت کن
+            const result = await Source.findByIdAndUpdate(id, update, { new: true });
+
+            if (!result) {
+            return res.status(404).json({ error: 'سورس پیدا نشد' });
+            }
+
+            res.status(200).json({ message: 'با موفقیت ویرایش شد', source: result });
+        } catch (err) {
+            console.error('خطا در ویرایش سورس:', err);
+            res.status(500).json({ error: 'خطا در ویرایش سورس' });
+        }
+    }
+
+
+
+}
